@@ -1,3 +1,53 @@
+freenetis (1.1.25) stable; urgency=low
+  * Add support for subnet CIDR 31
+  * Fix links to works/requests/work reports from user account on Stretch
+  * Fixes presence of whitelisted members in notification e-mail report message
+  * Fix map preview display in member popup window
+ -- Ondrej Fibich <ondrej.fibich@gmail.com>  Thu, 09 May 2019 20:35:49 +0200
+
+freenetis (1.1.24) stable; urgency=hight
+  * Fix scheduler failure on Debian 8 and higher
+  * Drop support for Debian 5 (Lenny)
+ -- Ondrej Fibich <ondrej.fibich@gmail.com>  Sat, 05 Jan 2019 23:10:02 +0100
+
+freenetis (1.1.23) stable; urgency=low
+  * Support for Debian 9 (Stretch)
+  * Big debtor notification message
+  * E-mail reports of notification message activations with list of affected
+  * Fix map support by using Mapy.cz (maps) and OSM Nominativ (GPS lookup)
+  * Fix setup on Wheezy
+  * Fix order of options in filter fields with selectbox
+ -- Ondrej Fibich <ondrej.fibich@gmail.com>  Fri, 28 Dec 2018 10:25:25 +0100
+
+freenetis (1.1.22) stable; urgency=low
+  * GDPR: Former members older than 5 years can be deleted
+  * Member registration field can be set during adding
+  * User birthday can be non-mandatory item
+  * Fix getting MAC from DHCP leases through SNMP on RouterOS 6.35>=
+  * Fix payed to calculation if deduct day is set to 28th
+ -- Ondrej Fibich <ondrej.fibich@gmail.com>  Wed, 13 Jun 2018 22:41:16 +0200
+
+freenetis (1.1.21) stable; urgency=low
+  * Add support for SMTP servers with encryption
+  * Fix RB importer in PHP 5.6 >=
+  * Fix removing of user with set watchers
+  * Fix member export with speed class filter set
+ -- Ondrej Fibich <ondrej.fibich@gmail.com>  Fri, 26 May 2017 05:59:28 +0200
+
+freenetis (1.1.20) stable; urgency=low
+  * Web interface: unallowed_ip_addresses improved: filter by message type added
+  * Improves performance of email queue
+  * Fix Tatra banka importer for total balance higher than 999
+  * Fix Tatra banka importer when no new payment received via e-mail listing
+  * GPS position of address points is now stored compatibly with MySQL 5.7
+ -- Ondrej Fibich <ondrej.fibich@gmail.com>  Thu, 02 Feb 2017 17:48:22 +0100
+
+freenetis (1.1.19) stable; urgency=low
+  * Fix some issues in PHP 7.0
+  * Fix issue in system setting during country saving
+  * Improves Tatra banka importer
+ -- Ondrej Fibich <ondrej.fibich@gmail.com>  Thu, 08 Sep 2016 23:49:04 +0200
+
 freenetis (1.1.18) stable; urgency=low
   * Fix members export to CSV with whitelist filter
   * Activation of notification for a single member when redirection disabled

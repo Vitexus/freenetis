@@ -8,7 +8,10 @@ else
 
 ?>
 <br /><br />
-<table class="extended" style="float:left; margin-bottom: 20px;" cellspacing="0">
+
+<div style="display: grid; grid-column-gap: 50px; grid-template-columns: 1fr 2fr; margin-bottom: 2em">
+
+<table class="extended" cellspacing="0">
 	<tr>
 		<th><?php echo __('ID') ?></th>
 		<td><?php echo $address_point->id ?></td>
@@ -52,16 +55,10 @@ else
 </table>
 
 <?php if (!empty($gps)): ?>
-	<div id="ap_gmap" style="float: <?php echo ($this->popup ? 'left' : 'right');?>">
-		<a class="gmap" href="http://maps.google.com/maps?f=q&hl=<?php echo $lang ?>&geocode=&q=<?php echo $gpsx ?>,<?php echo $gpsy ?>&z=18&t=h&ie=UTF8"  target="_blank">
-			<img alt="<?php echo __('Address point detail') ?>" src="http://maps.google.com/maps/api/staticmap?center=<?php echo $gpsx ?>,<?php echo $gpsy ?>&zoom=16&maptype=hybrid&size=400x300&markers=color:red%7C<?php echo $gpsx ?>,<?php echo $gpsy ?>&language<?php echo $lang ?>&sensor=false"/>
-		</a>
-	</div>
-	<div style="margin-bottom: 10px; float:left"></div>
+	<div id="ap_gmap" style="min-height: 400px" data-gpsx="<?php echo $gpsx ?>" data-gpsy="<?php echo $gpsy ?>"></div>
 <?php endif; ?>
 
-<div style="clear: both"></div>
-<br /><br />
+</div>
 
 <h3><?php echo __('Members on this address') ?></h3>
 <?php echo $members_grid ?>

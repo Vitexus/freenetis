@@ -283,6 +283,16 @@ class Members_Controller extends Controller
 			$grid->datasource($query);
 		}
 
+		if ($this->acl_check_delete(get_class($this), 'members'))
+		{
+			$actions->add_conditional_action('id')
+					->condition('is_former_for_more_than_limit_years')
+					->icon_action('delete')
+					->url('members/delete_former')
+					->label('Delete member')
+					->class('delete_link');
+		}
+
 		if (isset($_POST) && count($_POST) > 1)
 		{
 			$ids = $_POST["ids"];
@@ -1302,7 +1312,7 @@ class Members_Controller extends Controller
 			}
 			
 			// gps coordinates
-			if (!empty($member->address_point->gps))
+			if ($member->address_point->gps != NULL)
 			{
 				$gps_result = ORM::factory('address_point')->get_gps_coordinates(
 						$member->address_point->id
@@ -1363,7 +1373,7 @@ class Members_Controller extends Controller
 			}
 			
 			// gps coordinates
-			if (!empty($member->members_domicile->address_point->gps))
+			if ($member->members_domicile->address_point->gps != NULL)
 			{
 				$gps_result = ORM::factory('address_point')->get_gps_coordinates(
 						$member->members_domicile->address_point->id
@@ -1714,9 +1724,24 @@ class Members_Controller extends Controller
 		$member_links = array();
 		$user_links = array();
 
-		// member edit link
-		if (!$is_former &&
-			$this->acl_check_edit(get_class($this), 'members', $member->id))
+		// member delete/edit link
+		if ($is_former)
+		{
+			if ($this->acl_check_delete(get_class($this), 'members')
+				&& condition::is_former_for_more_than_limit_years($member))
+			{
+				$member_links[] = html::anchor(
+						'members/delete_former/'.$member->id,
+						__('Delete'),
+						array
+						(
+							'title' => __('Delete'),
+							'class' => 'delete_link'
+						)
+				);
+			}
+		}
+		else if ($this->acl_check_edit(get_class($this), 'members', $member->id))
 		{
 			$member_links[] = html::anchor(
 					'members/edit/'.$member->id,
@@ -2031,6 +2056,7 @@ class Members_Controller extends Controller
 		$view->title = $title;
 		$view->breadcrumbs = $breadcrumbs->html();
 		$view->action_logs = action_logs::object_last_modif($member, $member_id);
+		$view->mapycz_enabled = TRUE; // for popup link to address point
 		$view->content = new View('members/show');
 		$view->content->title = $title;
 		$view->content->member = $member;
@@ -2113,11 +2139,6 @@ class Members_Controller extends Controller
 			$sign = -1;
 		}
 
-		// ttl = time to live - it is count how many ending conditions
-		// will have to happen to end cycle
-		// negative balance needs one extra more
-		$ttl =  ($balance < 0) ? 2 : 1;
-
 		// negative balance will drawn by red color, else balance will drawn by green color
 		$color = ($balance < 0) ? 'red' : 'green';
 
@@ -2179,13 +2200,7 @@ class Members_Controller extends Controller
 			// attributed / deduct fee to / from balance
 			$balance -= $sign * $fee;
 
-			if ($sign == -1 && $balance == 0)
-				$ttl--;
-
 			if ($balance * $sign < 0)
-				$ttl--;
-
-			if ($ttl == 0)
 				break;
 
 			$month += $sign;
@@ -2573,17 +2588,33 @@ class Members_Controller extends Controller
 				->selected($default_speed_class ? $default_speed_class->id : NULL)
 				->add_button('speed_classes')
 				->style('width:200px');
-		
-		$form->date('birthday')
-				->label('Birthday')
-				->years(date('Y')-100, date('Y'))
-				->rules('required');
+
+		if (!Settings::get('users_birthday_empty_enabled'))
+		{
+			$form->date('birthday')
+					->label('Birthday')
+					->years(date('Y')-100, date('Y'))
+					->rules('required');
+		}
+		else
+		{
+			$form->date('birthday')
+					->label('Birthday')
+					->years(date('Y')-100, date('Y'))
+					->value('');
+		}
 		
 		$form->date('entrance_date')
 				->label('Entrance date')
 				->years($entrace_start_year)
 				->rules('required')
 				->callback(array($this, 'valid_entrance_date'));
+		
+		if ($this->acl_check_edit('Members_Controller', 'registration'))
+		{
+			$form->dropdown('registration')
+					->options(arr::rbool());
+		}
 		
 		$form->textarea('comment')
 				->rules('length[0,250]');
@@ -2731,7 +2762,7 @@ class Members_Controller extends Controller
 					}
 					else
 					{ // delete gps
-						$address_point->gps = '';
+						$address_point->gps = NULL;
 						$address_point->save_throwable();
 					}
 
@@ -2754,7 +2785,16 @@ class Members_Controller extends Controller
 					$user->surname = $form_data['surname'];
 					$user->pre_title = $form_data['title1'];
 					$user->post_title = $form_data['title2'];
-					$user->birthday	= date("Y-m-d",$form_data['birthday']);
+
+					if (empty($form_data['birthday']))
+					{
+						$user->birthday	= NULL;
+					}
+					else
+					{
+						$user->birthday	= date("Y-m-d", $form_data['birthday']);
+					}
+
 					$user->password	= sha1($form_data['password']);
 					$user->type = User_Model::MAIN_USER;
 					$user->application_password = security::generate_password();
@@ -2801,6 +2841,11 @@ class Members_Controller extends Controller
 					else
 					{
 						$member->entrance_date = date('Y-m-d', $form_data['entrance_date']);
+					}
+					
+					if ($this->acl_check_edit('Members_Controller', 'registration'))
+					{
+						$member->registration = $form_data['registration'];
 					}
 
 					// saving member
@@ -2949,7 +2994,7 @@ class Members_Controller extends Controller
 							}
 							else
 							{ // delete gps
-								$address_point->gps = '';
+								$address_point->gps = NULL;
 								$address_point->save_throwable();
 							}
 							// add domicicle
@@ -3148,7 +3193,7 @@ class Members_Controller extends Controller
 			$gpsx = '';
 			$gpsy = '';
 
-			if (!empty($member->address_point->gps))
+			if ($member->address_point->gps != NULL)
 			{
 				$gps_result = $member->address_point->get_gps_coordinates(
 						$member->address_point->id
@@ -3165,7 +3210,7 @@ class Members_Controller extends Controller
 			$domicile_gpsx = '';
 			$domicile_gpsy = '';
 
-			if (!empty($member->members_domicile->address_point->gps))
+			if ($member->members_domicile->address_point->gps != NULL)
 			{
 				$gps_result = $member->address_point->get_gps_coordinates(
 						$member->members_domicile->address_point->id
@@ -3587,7 +3632,7 @@ class Members_Controller extends Controller
 						}
 						else
 						{ // delete gps
-							$address_point->gps = '';
+							$address_point->gps = NULL;
 							$address_point->save();
 						}
 
@@ -3654,7 +3699,7 @@ class Members_Controller extends Controller
 							}
 							else
 							{ // delete gps
-								$address_point->gps = '';
+								$address_point->gps = NULL;
 								$address_point->save();
 							}
 						}
@@ -3819,6 +3864,83 @@ class Members_Controller extends Controller
 		$view->render(TRUE);
 	} // end of edit function
 	
+	/**
+	 * Delete former member that has left at least before 5 years.
+	 *
+	 * @param int $member_id	id of member to delete
+	 */
+	public function delete_former($member_id = NULL)
+	{
+		if (!isset($member_id) || !is_numeric($member_id))
+		{
+			self::warning(PARAMETER);
+		}
+
+		$member = new Member_Model($member_id);
+
+		// member doesn't exist
+		if (!$member->id)
+		{
+			self::error(RECORD);
+		}
+
+		// access control
+		if (!$this->acl_check_delete(get_class($this), 'members'))
+		{
+			self::error(ACCESS);
+		}
+
+		if (!condition::is_former_for_more_than_limit_years($member))
+		{
+			self::error(ACCESS);
+		}
+
+		try
+		{
+			$ba_model = new Bank_account_Model();
+			$bank_trans_model = new Bank_transfer_Model();
+
+			$member->transaction_start();
+
+			// change member credit account name
+			$credit_account = $member->get_credit_account();
+			if ($credit_account->id)
+			{
+				$credit_account->name = __('Former member') . ' ' . $member->id;
+				$credit_account->save_throwable();
+			}
+
+			// delete bank accounts and their transfers with owner set to the
+			// member
+			$bank_accounts = $ba_model->get_member_bank_accounts($member->id);
+
+			foreach ($bank_accounts as $bank_account)
+			{
+				$bank_trans_model->delete_all_with_origin($bank_account->id);
+				$ba_model->delete_throwable($bank_account->id);
+			}
+
+			// delete bank tranfers that was assigned to the member but does not
+			// come from his bank account (e.g. from post service)
+			$bank_trans_model->delete_all_with_transfer_to($member->id);
+
+			// delete member, user, jobs, job reports, contacts, etc.
+			$member->delete_throwable();
+
+			$member->transaction_commit();
+
+			status::success('Member has been successfully removed.');
+			url::redirect('members/show_all');
+		}
+		catch (Exception $ex)
+		{
+			$member->transaction_rollback();
+			Log::add_exception($ex);
+			status::error('Error - cannot remove member.', $ex);
+			url::redirect('members/show_all');
+		}
+	}
+
 	/**
 	 * Enables to edid member settings (e.g. notification settings).
 	 * 
@@ -4787,6 +4909,7 @@ class Members_Controller extends Controller
 					(
 						Message_Model::INTERRUPTED_MEMBERSHIP_MESSAGE => __('Membership interrupt'),
 						Message_Model::DEBTOR_MESSAGE => __('Debtor'),
+						Message_Model::BIG_DEBTOR_MESSAGE => __('Big debtor'),
 						Message_Model::PAYMENT_NOTICE_MESSAGE => __('Payment notice'),
 						Message_Model::UNALLOWED_CONNECTING_PLACE_MESSAGE => __('Unallowed connecting place'),
 						Message_Model::CONNECTION_TEST_EXPIRED => __('Connection test expired'),

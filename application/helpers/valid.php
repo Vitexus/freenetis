@@ -23,6 +23,24 @@ class valid {
 	}
 
 	/**
+	 * Validate emails, commonly used characters only, separated by commas
+	 *
+	 * @param   string   email address
+	 * @return  boolean
+	 */
+	public static function emails($emails)
+	{
+		foreach (explode(',', $emails) as $email)
+		{
+			if (!self::email($email))
+			{
+				return FALSE;
+			}
+		}
+		return TRUE;
+	}
+
+	/**
 	 * Validate email, RFC compliant version
 	 * Note: This function is LESS strict than valid_email. Choose carefully.
 	 *
@@ -131,7 +149,7 @@ class valid {
 		{
 			return false; // IP address does not match the subnet/mask
 		}
-		else if ($size > 1 && ($ip == $net || $ip == ($net + $size - 1)))
+		else if ($size > 2 && ($ip == $net || $ip == ($net + $size - 1)))
 		{
 			return false; // Invalid IP address
 		}

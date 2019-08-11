@@ -398,7 +398,9 @@ class Users_Controller extends Controller
 			status::warning('User cannot be deleted, he has some dependent items in database.');
 			url::redirect($linkback);	
 		}
-		
+
+		$user_model->delete_watchers($user_id);
+
 		if ($user_model->delete())
 		{
 			status::success('User has been successfully deleted.');
@@ -489,6 +491,22 @@ class Users_Controller extends Controller
 				->years(date('Y')-100, date('Y'))
 				->rules('required')
 				->value(strtotime($user->birthday));
+
+		if (!Settings::get('users_birthday_empty_enabled'))
+		{
+			$form->date('birthday')
+					->label('Birthday')
+					->years(date('Y')-100, date('Y'))
+					->rules('required')
+					->value(strtotime($user->birthday));
+		}
+		else
+		{
+			$form->date('birthday')
+					->label('Birthday')
+					->years(date('Y')-100, date('Y'))
+					->value(strtotime($user->birthday));
+		}
 		
 		if ($this->acl_check_edit(get_class($this), 'comment', $user->member_id))
 		{
@@ -512,7 +530,16 @@ class Users_Controller extends Controller
 			{
 				$user_data->login = $form_data['username'];
 			}
-			$user_data->birthday = date("Y-m-d",$form_data['birthday']);
+
+			if (empty($form_data['birthday']))
+			{
+				$user_data->birthday = NULL;
+			}
+			else
+			{
+				$user_data->birthday = date("Y-m-d", $form_data['birthday']);
+			}
+
 			$user_data->pre_title = $form_data['pre_title'];
 			$user_data->name = $form_data['name'];
 			$user_data->middle_name = $form_data['middle_name'];
@@ -817,10 +844,20 @@ class Users_Controller extends Controller
 
 		$form->group('Additional information');
 
-		$form->date('birthday')
-				->label('Birthday')
-				->years(date('Y')-100, date('Y'))
-				->rules('required');
+		if (!Settings::get('users_birthday_empty_enabled'))
+		{
+			$form->date('birthday')
+					->label('Birthday')
+					->years(date('Y')-100, date('Y'))
+					->rules('required');
+		}
+		else
+		{
+			$form->date('birthday')
+					->label('Birthday')
+					->years(date('Y')-100, date('Y'))
+					->value('');
+		}
 
 		if ($this->acl_check_new(get_class($this),'comment',$member_id))
 		{
@@ -838,7 +875,6 @@ class Users_Controller extends Controller
 			$form_data = $form->as_array();
 
 			$user_data = new User_Model;
-			$user_data->birthday = date("Y-m-d",$form_data['birthday']);
 			$user_data->login = $form_data['username'];
 			$user_data->password = sha1($form_data['password']);
 			$user_data->pre_title = $form_data['pre_title'];
@@ -847,12 +883,22 @@ class Users_Controller extends Controller
 			$user_data->surname = $form_data['surname'];
 			$user_data->post_title = $form_data['post_title'];
 
+			if (empty($form_data['birthday']))
+			{
+				$user_data->birthday = NULL;
+			}
+			else
+			{
+				$user_data->birthday = date("Y-m-d", $form_data['birthday']);
+			}
+
 			if (isset($form_data['comment']))
 				$user_data->comment = $form_data['comment'];
 
 			$user_data->type = User_Model::USER;
 			$user_data->member_id = $member_id;
 			$user_data->application_password = security::generate_password();
+			$user_data->settings = '';
 			$saved = $user_data->save();
 
 			// insert users access rights
@@ -919,7 +965,8 @@ class Users_Controller extends Controller
 	 */
 	public function show_work ($work_id = NULL)
 	{
-		Works_Controller::show ($work_id);
+		$controller = new Works_Controller();
+		$controller->show($work_id);
 	}
 	
 	/**
@@ -930,7 +977,8 @@ class Users_Controller extends Controller
 	 */
 	public function show_work_report ($work_report_id = NULL)
 	{
-		Work_reports_Controller::show ($work_report_id);
+		$controller = new Work_reports_Controller();
+		$controller->show($work_report_id);
 	}
 	
 	/**
@@ -941,7 +989,8 @@ class Users_Controller extends Controller
 	 */
 	public function show_request ($request_id = NULL)
 	{
-		Requests_Controller::show ($request_id);
+		$controller = new Requests_Controller();
+		$controller->show($request_id);
 	}
 
 	/**

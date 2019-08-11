@@ -124,6 +124,24 @@ class Controller extends Controller_Core
 		// This part only needs to be run once
 		if (self::$instance === NULL)
 		{
+			// init settings
+			$this->settings = new Settings();
+
+			$not_setup = !file_exists('config.php') || !file_exists('.htaccess');
+
+			// change setting for non-setup in order to prevent database init
+			// in Settings
+			if ($not_setup)
+			{
+				Settings::set_offline_mode(TRUE);
+
+				$this->settings->set('index_page', !file_exists('.htaccess'));
+				// Choose all automatically for setup (see url helper)
+				$this->settings->set('domain', '');
+				$this->settings->set('suffix', '');
+				$this->settings->set('protocol', '');
+			}
+
 			// init sessions
 			$this->session = Session::instance();
 			
@@ -160,9 +178,6 @@ class Controller extends Controller_Core
 				// Die
 				die();
 			}
-			
-			// init settings
-			$this->settings = new Settings();
 
 			// if true, freenetis will run in popup mode (without header and menu)
 			$this->popup = (isset($_GET['popup']) && $_GET['popup']) ? 1 : 0;
@@ -174,16 +189,11 @@ class Controller extends Controller_Core
 			$this->noredirect = ($this->input->get('noredirect') || $this->input->post('noredirect'));
 
 			// config file doesn't exist, we must create it
-			if (!file_exists('config.php') || !file_exists('.htaccess'))
+			if ($not_setup)
 			{
 				// protection before loop
 				if (url_lang::current(1) == 'setup_config')
 					return;
-				
-				if (!file_exists('.htaccess'))
-				{
-					Settings::set('index_page', 1);
-				}
 				
 				url::redirect('setup_config');
 			}
@@ -280,22 +290,22 @@ class Controller extends Controller_Core
 				fclose($f);
 			}
 			
-			// load these variables only if preprocessor is enabled and user is logged
-			if ($this->is_preprocesor_enabled() && $this->user_id)
-			{
-				// for preprocessing some variable
-				try
-				{
-					$this->preprocessor();
-				}
-				catch(Exception $e)
-				{
-					Log::add_exception($e);
-				}
-			}
+			$this->preprocessor_if_enabled();
 
 			// Singleton instance
 			self::$instance = $this;
+		}
+		else // copy resources from singleton in order to be capable to initiate another controller
+		{
+			$this->settings = self::$instance->settings;
+			$this->session = self::$instance->session;
+			$this->user_id = self::$instance->user_id;
+			$this->member_id = self::$instance->member_id;
+			$this->popup = self::$instance->popup;
+			$this->dialog = self::$instance->dialog;
+			$this->noredirect = self::$instance->noredirect;
+
+			$this->preprocessor_if_enabled();
 		}
 	}
 	
@@ -331,7 +341,7 @@ class Controller extends Controller_Core
 				$response_code = 403; // Forbidden
 				break;
 			case EMAIL:
-				$message = url_lang::lang('states.Failed to send e-mail') . 
+				$message = url_lang::lang('states.Failed to send e-mail') .
 					'<br />' . url_lang::lang('states.Please check settings.');
 				$response_code = 500; // Internal server error
 				break;
@@ -649,6 +659,25 @@ class Controller extends Controller_Core
 	}
 
 	/**
+	 * Loads variables only if preprocessor is enabled and user is logged.
+	 */
+	private function preprocessor_if_enabled()
+	{
+		if ($this->is_preprocesor_enabled() && $this->user_id)
+		{
+			// for preprocessing some variable
+			try
+			{
+				$this->preprocessor();
+			}
+			catch(Exception $e)
+			{
+				Log::add_exception($e);
+			}
+		}
+	}
+
+	/**
 	 * Function to preprocessing of some useful variables
 	 * 
 	 * @author Michal Kliment
@@ -869,7 +898,7 @@ class Controller extends Controller_Core
 		}
 		
 		// my requests
-		if (Settings::get('approval_enabled') && 
+		if (Settings::get('approval_enabled') &&
 			$this->member_id != Member_Model::ASSOCIATION &&
 			$this->acl_check_view('Requests_Controller', 'request', $this->member_id))
 		{
@@ -914,6 +943,24 @@ class Controller extends Controller_Core
 		{
 			$menu->addItem(
 				'members/show_all', __('Members'), 'users');
+		}
+
+		// list of former members to delete
+		if ($this->acl_check_delete('Members_Controller', 'members'))
+		{
+			$Xyears = intval(Settings::get('member_former_limit_years'));
+			$date_Xyears_before = date('Y-m-d', strtotime('-' . $Xyears . ' years'));
+			// TODO: add support for building link in Filter_form library
+			$menu->addItem(
+				'members/show_all?on[0]=1&types[0]=type&opers[0]=3&values[0][]=15'
+				. '&tables[type]=m&tables[leaving_date]=m&on[1]=1'
+				. '&types[1]=leaving_date&opers[1]=8&values[1][0]=' . $date_Xyears_before
+				. '&types[2]=type&opers[2]=3&values[2][0]=1',
+				__('Former members (%d years)', array($Xyears)), 'users', array
+				(
+					'count' => $pm->count_of_former_members_to_delete($Xyears),
+					'color' => 'red'
+				));
 		}
 		
 		/**

@@ -23,6 +23,14 @@ class Settings
 	 * @var Config_Model
 	 */
 	private static $config_model = NULL;
+
+	/**
+	 * When turned ON no DB queries are performed. Useful for non-setup
+	 * environment.
+	 *
+	 * @var bool
+	 */
+	private static $offline_mode = FALSE;
 	
 	/**
 	 * Variable for cache
@@ -102,6 +110,8 @@ class Settings
 		'email_driver'						=> 'native',
 		// default email port
 		'email_port'						=> 25,
+		// default email connection encryption
+		'email_encryption'					=> 'none',
 		// default value for prefix of subject of notification
 		// e-mails to members
 		'email_subject_prefix'				=> 'FreenetIS',
@@ -264,9 +274,15 @@ class Settings
         // contact duplicities
         'user_email_duplicities_enabled'    => FALSE,
         'user_phone_duplicities_enabled'    => FALSE,
+
+		// user birthday
+		'users_birthday_empty_enabled'		=> FALSE,
 		
 		// username regex #360
 		'username_regex'					=> '/^[a-z][a-z0-9_]{4,}$/',
+
+		// former member delete limit
+		'member_former_limit_years'			=> 5,
 	);
 	
 	/**
@@ -294,6 +310,11 @@ class Settings
 		// not connected? connect!
 		if (!self::$config_model)
 		{
+			if (self::$offline_mode)
+			{
+				return FALSE;
+			}
+
 			try
 			{
 				// create config model
@@ -322,21 +343,25 @@ class Settings
 	{
 		// init
 		self::init();
-		
+
 		// if cache is enabled, return it from it
 		if ($cache && isset(self::$cache[$key]))
 		{
 			return self::$cache[$key];
 		}
 
+		$value = '';
+
 		// try if query return exception, for example config table doesn't exist
 		try
 		{
-			$value = self::$config_model->get_value_from_name($key);
+			if (!self::$offline_mode)
+			{
+				$value = self::$config_model->get_value_from_name($key);
+			}
 		}
 		catch (Kohana_Database_Exception $e)
 		{
-			$value = '';
 		}
 
 		// if we find not-null value, return it
@@ -370,6 +395,12 @@ class Settings
 	 */
 	public static function set($key, $value)
 	{
+		if (self::$offline_mode)
+		{
+			self::cache_value_set($key, $value);
+			return FALSE;
+		}
+
 		// init
 		self::init();
 
@@ -398,6 +429,16 @@ class Settings
 		}
 		
 		return FALSE;
+	}
+	
+	/**
+	 * Enable/disable DB queries on get/set.
+	 *
+	 * @param bool $flag
+	 */
+	public static function set_offline_mode($flag)
+	{
+		self::$offline_mode = $flag;
 	}
 
 }
